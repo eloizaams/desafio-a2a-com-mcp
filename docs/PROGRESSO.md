@@ -5,7 +5,8 @@
 ## Estado atual
 - **Fase:** 0 — setup (não iniciada)
 - **Branch:** `feature/planejamento-sdd` (a partir de `develop`)
-- **Próxima tarefa:** T0.1 · modelo sugerido: Opus (fase 0 inclui spike de SDK)
+- **Próxima tarefa:** T0.1 (uv já instalado) · modelo sugerido: Opus (fase 0 inclui spike de SDK)
+- **PR aberto:** #1 `feature/planejamento-sdd` → `develop` (aguardando merge)
 
 ## Validador
 | Data | Resultado | Observação |
