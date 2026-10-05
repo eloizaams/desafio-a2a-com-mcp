@@ -1,6 +1,6 @@
 import re
 
-from agente_salas.adapters.mcp_client.trace import TraceContext, iniciar
+from agente_salas.domain.trace import TraceContext, iniciar
 
 PADRAO_TRACEPARENT = re.compile(r"^00-[0-9a-f]{32}-[0-9a-f]{16}-01$")
 

@@ -20,11 +20,11 @@ from a2a.utils.errors import UnsupportedOperationError
 from mcp.server.mcpserver import MCPServer
 
 from agente_salas.adapters.mcp_client.cliente import ClienteSalas
-from agente_salas.adapters.mcp_client.trace import iniciar
 from agente_salas.constantes import MSG_COMANDO_INVALIDO
 from agente_salas.domain.comando import ErroComando, Escolha, PedidoReserva, parse
 from agente_salas.domain.pendencia import ArgsReserva
 from agente_salas.domain.resultados import Concluido, Falhou, PrecisaEntrada
+from agente_salas.domain.trace import iniciar
 
 
 class ErroRequisicaoSemMensagem(Exception):

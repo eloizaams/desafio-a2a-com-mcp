@@ -2,9 +2,9 @@ import pytest
 from mcp.server.mcpserver import MCPServer
 
 from agente_salas.adapters.mcp_client.cliente import ClienteSalas, ErroDescoberta
-from agente_salas.adapters.mcp_client.trace import iniciar
 from agente_salas.domain.pendencia import ArgsReserva, RespostaElicitation
 from agente_salas.domain.resultados import Concluido, Falhou, PrecisaEntrada, Recusado
+from agente_salas.domain.trace import iniciar
 
 from .fake_servidor import ALTERNATIVAS, SALA_INEXISTENTE, SALA_OCUPADA, criar_servidor_fake
 

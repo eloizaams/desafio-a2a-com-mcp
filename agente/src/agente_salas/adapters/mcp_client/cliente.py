@@ -17,7 +17,6 @@ from mcp import Client
 from mcp.client.session import ClientRequestContext
 from mcp.server.mcpserver import MCPServer
 
-from agente_salas.adapters.mcp_client.trace import TraceContext
 from agente_salas.constantes import (
     CLIENTE_MCP_NOME,
     PREFIXO_VERSAO_POLITICA,
@@ -28,6 +27,7 @@ from agente_salas.constantes import (
 )
 from agente_salas.domain.pendencia import ArgsReserva, PendenciaMRTR, RespostaElicitation
 from agente_salas.domain.resultados import Concluido, Falhou, PrecisaEntrada, Recusado
+from agente_salas.domain.trace import TraceContext
 
 
 class ErroDescoberta(Exception):
