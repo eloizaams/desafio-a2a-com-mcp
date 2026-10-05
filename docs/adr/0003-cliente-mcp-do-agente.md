@@ -30,3 +30,4 @@ Servidor mínimo `MCPServer` + cliente `mcp.Client(transport, mode="2026-07-28")
 - O SDK anuncia `elicitation: {form: {}, url: {}}` (o wire de referência mostra só `form`); o servidor aceita os dois.
 - `mode="2026-07-28"` adota a versão direto, sem `server/discover` — nenhum request extra antes do `tools/list`.
 - O agente passa a depender de `mcp==2.3.0`; `httpx` direto deixa de ser necessário em runtime.
+- **Um `Client` por processo, não por Task (achado da fase 005).** O id JSON-RPC é monotônico *por instância* de `Client`; na fase 004 cada Task abria um `ClienteSalas` novo, então o retry MRTR saía com `id=1`, igual à chamada pausada (HOST-07 violado, invisível ao validador, visível no stderr do MCP). Além disso o SDK só faz `tools/list` *depois* do 1º `tools/call` (para validar output schema) — AV5 exige o contrário. Correção: um único `ClienteSalas` aberto no lifespan do app A2A, com descoberta lazy antes do 1º `tools/call` (`_descoberto`).
