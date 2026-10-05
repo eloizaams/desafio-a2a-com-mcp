@@ -89,13 +89,7 @@ class ClienteSalas:
     async def reservar(
         self, args: ArgsReserva, trace: TraceContext
     ) -> Concluido | Falhou | PrecisaEntrada:
-        resultado = await self._client.session.call_tool(
-            TOOL_RESERVAR_SALA,
-            _argumentos(args),
-            meta=_meta(trace),
-            allow_input_required=True,
-        )
-        interpretado = _interpretar(resultado)
+        interpretado = await self._chamar_reservar_sala(args, trace)
         if isinstance(interpretado, Recusado):
             # Só pode vir de um retry (ver `retomar`): a 1ª chamada nunca carrega
             # `inputResponses`, então o servidor não tem como devolver `reservado=False`.
@@ -111,11 +105,26 @@ class ClienteSalas:
         resposta: RespostaElicitation,
         trace: TraceContext,
     ) -> Concluido | Falhou | Recusado | PrecisaEntrada:
+        return await self._chamar_reservar_sala(
+            args,
+            trace,
+            input_responses={pendencia.chave: _resposta_wire(pendencia, resposta)},
+            request_state=pendencia.request_state,
+        )
+
+    async def _chamar_reservar_sala(
+        self,
+        args: ArgsReserva,
+        trace: TraceContext,
+        *,
+        input_responses: types.InputResponses | None = None,
+        request_state: str | None = None,
+    ) -> Concluido | Falhou | Recusado | PrecisaEntrada:
         resultado = await self._client.session.call_tool(
             TOOL_RESERVAR_SALA,
             _argumentos(args),
-            input_responses={pendencia.chave: _resposta_wire(pendencia, resposta)},
-            request_state=pendencia.request_state,
+            input_responses=input_responses,
+            request_state=request_state,
             meta=_meta(trace),
             allow_input_required=True,
         )
