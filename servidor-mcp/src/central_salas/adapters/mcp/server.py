@@ -105,7 +105,8 @@ def criar_app(config: ConfigServidor) -> Starlette:
         if isinstance(escolha, DeclinedElicitation | CancelledElicitation):
             return ReservaOut(reservado=False, motivo=MOTIVO_RECUSA)
 
-        assert isinstance(escolha, AcceptedElicitation)
+        if not isinstance(escolha, AcceptedElicitation):
+            raise ToolError(f"Resultado de elicitation inesperado: {type(escolha).__name__}")
         sala_final = sala if escolha.data is None else escolha.data.sala
 
         resultado = casos_de_uso.reservar_sala(repositorio, sala_final, inicio, fim, responsavel)
