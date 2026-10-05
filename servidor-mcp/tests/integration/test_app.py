@@ -494,6 +494,65 @@ def test_v20_conflito_sem_alternativa_possivel_devolve_iserror_com_mensagem_exat
     assert ERRO_SEM_ALTERNATIVAS in _texto(resultado)
 
 
+def test_mrtr_alternativa_tomada_entre_pausa_e_retry_gera_nova_pausa() -> None:
+    """ADR-0006 ("Pendências"): resolvido — não dá pra double-booking.
+
+    O resolver reexecuta a cada rodada (`verificar_conflito_reserva`, só leitura)
+    e recalcula as alternativas; se a escolha enviada no retry não está mais entre
+    elas, o próprio SDK descarta a resposta ("a pergunta mudou") e devolve uma
+    nova pausa — nunca grava a sala que acabou de ser ocupada por outra pessoa.
+    """
+    with TestClient(_app(), base_url="http://127.0.0.1:7301") as cliente:
+        _, pausa = _reservar(
+            cliente,
+            "sala-garagem",
+            "2026-11-03T14:00:00-03:00",
+            "2026-11-03T15:00:00-03:00",
+            responsavel="Marty",
+        )
+        chave, estado = _pendencia(pausa["result"])
+        alternativas_originais = pausa["result"]["inputRequests"][chave]["params"][
+            "requestedSchema"
+        ]["properties"]["sala"]["enum"]
+        assert alternativas_originais == ["sala-fusca", "sala-mirante"]
+
+        # alguém mais rápido reserva a 1ª alternativa antes do retry chegar
+        _, intruso = _reservar(
+            cliente,
+            "sala-fusca",
+            "2026-11-03T14:00:00-03:00",
+            "2026-11-03T15:00:00-03:00",
+            responsavel="Intruso",
+            id_=2,
+        )
+        assert intruso["result"]["structuredContent"]["reservado"] is True
+
+        _, resposta = _retomar(
+            cliente,
+            "sala-garagem",
+            "2026-11-03T14:00:00-03:00",
+            "2026-11-03T15:00:00-03:00",
+            chave,
+            {"action": "accept", "content": {"sala": "sala-fusca"}},
+            estado,
+            responsavel="Marty",
+            id_=3,
+        )
+
+    resultado = resposta["result"]
+    assert resultado["resultType"] == "input_required", (
+        "a escolha obsoleta (sala-fusca) nao pode concluir a reserva sozinha"
+    )
+    nova_chave, novo_estado = _pendencia(resultado)
+    assert novo_estado != estado
+    novo_esquema = resultado["inputRequests"][nova_chave]["params"]["requestedSchema"][
+        "properties"
+    ]["sala"]
+    # só sobrou uma alternativa -> pydantic gera "const", não "enum" de 1 item
+    novas_alternativas = novo_esquema.get("enum") or [novo_esquema.get("const")]
+    assert novas_alternativas == ["sala-mirante"]
+
+
 def test_mrtr_retry_sobrevive_a_restart_do_processo() -> None:
     """T2.6: nada em memoria entre pausa e retry — processo A pausa, processo B conclui."""
     with TestClient(_app(), base_url="http://127.0.0.1:7301") as processo_a:
