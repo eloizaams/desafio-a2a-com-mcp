@@ -177,3 +177,23 @@ def test_nenhuma_resposta_a2a_carrega_o_request_state(monkeypatch: pytest.Monkey
     assert len(guardados) == 2
     assert all(guardados)
     assert not [estado for estado in guardados for corpo in corpos if estado in corpo]
+
+
+def test_continuacao_so_com_task_id_herda_o_context_id_da_task() -> None:
+    """V29/V30: o validador manda só `taskId`; o SDK geraria um `contextId` novo."""
+    app = criar_app(CONFIG, servidor_mcp=criar_servidor_fake())
+    with TestClient(app) as cliente:
+        pausada = _enviar(cliente, PEDIDO_OCUPADO)["result"]["task"]
+        respostas = [
+            _enviar(cliente, texto, task_id=pausada["id"])
+            for texto in ("escolha=sala-aquario", "nao sei", "escolha=sala-fusca")
+        ]
+
+    assert [_status(r)[0] for r in respostas] == [
+        "TASK_STATE_INPUT_REQUIRED",
+        "TASK_STATE_INPUT_REQUIRED",
+        "TASK_STATE_COMPLETED",
+    ]
+    final = respostas[-1]["result"]["task"]
+    assert final["contextId"] == pausada["contextId"]
+    assert {m["contextId"] for m in final["history"]} == {pausada["contextId"]}
