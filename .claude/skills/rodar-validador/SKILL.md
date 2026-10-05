@@ -21,7 +21,8 @@ O validador exige processos **recém-iniciados**: reservas criadas numa execuç�
 4. Registre a linha na tabela "Validador" de `docs/PROGRESSO.md` (data, resultado, observação).
 
 ## Sempre conferir também
-- `grep -c Traceback logs/agente.log` deve dar `0`. Um FAIL com `estado=` vazio quase sempre é exceção do a2a-sdk no agente (ex.: `Context in event doesn't match TaskManager`, fase 005) — o validador só vê o erro JSON-RPC, a causa está nesse log.
+- `grep -c Traceback logs/agente.log` deve dar `0`, **salvo** o ruído benigno conhecido abaixo. Um FAIL com `estado=` vazio quase sempre é exceção do a2a-sdk no agente (ex.: `Context in event doesn't match TaskManager`, fase 005) — o validador só vê o erro JSON-RPC, a causa está nesse log.
+- **Traceback intermitente do `a2a-sdk==1.2.2`, não causado pelo nosso código:** às vezes aparece `Failed to detach context` / `GeneratorExit` / `ValueError: ... was created in a different Context` / `Task was destroyed but it is pending!` vindo de `opentelemetry/.../a2a/utils/telemetry.py` (`EventQueueSource._dispatch_loop`), em algum ponto no meio do stderr (não indica qual check). Confirmado: aparece ou não de execução para execução sem mudar nenhum código, e o validador segue 36/36 nas duas situações — é o `_dispatch_loop` da Task sendo cancelado num contexto OTel diferente do que o abriu. Antes de investigar um FAIL por causa disso, confira se o `grep -c Traceback` real é um desses (grep por `Failed to detach context`) e não um traceback nosso.
 
 ## Conferências extras do Fluxo do avaliador (manuais, quando a fase pede)
 - **tools/list antes do 1º tools/call** (AV5): em `logs/mcp.log`, a primeira linha com `method=tools/call` deve vir depois de uma `method=tools/list`.
