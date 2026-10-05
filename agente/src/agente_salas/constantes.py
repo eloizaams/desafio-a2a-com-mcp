@@ -22,6 +22,10 @@ SKILL_RESERVAR_EXEMPLO: Final = (
 )
 
 HOST: Final = "127.0.0.1"
+# Chave do traceparent W3C: header HTTP recebido no A2A e chave do `_meta` MCP.
+CHAVE_TRACEPARENT: Final = "traceparent"
+# Onde o `ServerCallContext` do a2a-sdk guarda os headers HTTP da requisição.
+ESTADO_HEADERS: Final = "headers"
 CAMINHO_A2A: Final = "/a2a"
 VERSAO_PROTOCOLO_A2A: Final = "1.0"
 
@@ -29,6 +33,9 @@ MSG_COMANDO_INVALIDO: Final = (
     "Comando invalido. Use: reservar sala=<id> inicio=<iso8601> fim=<iso8601> "
     "responsavel=<nome>, ou escolha=<id da sala> / escolha=recusar"
 )
+# Linha de pausa da Task em INPUT_REQUIRED (PONTE-01): "alternativas: sala-a, sala-b".
+PREFIXO_ALTERNATIVAS: Final = "alternativas: "
+SEPARADOR_ALTERNATIVAS: Final = ", "
 
 ENV_PORTA: Final = "AGENTE_PORT"
 ENV_MCP_URL: Final = "MCP_URL"

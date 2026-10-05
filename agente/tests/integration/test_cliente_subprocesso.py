@@ -18,9 +18,9 @@ from pathlib import Path
 import pytest
 
 from agente_salas.adapters.mcp_client.cliente import ClienteSalas
-from agente_salas.adapters.mcp_client.trace import iniciar
 from agente_salas.domain.pendencia import ArgsReserva, RespostaElicitation
 from agente_salas.domain.resultados import Concluido, PrecisaEntrada
+from agente_salas.domain.trace import iniciar
 
 RAIZ = Path(__file__).resolve().parents[3]
 PORTA = 7391

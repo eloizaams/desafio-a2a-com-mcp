@@ -17,8 +17,8 @@ from mcp import Client
 from mcp.client.session import ClientRequestContext
 from mcp.server.mcpserver import MCPServer
 
-from agente_salas.adapters.mcp_client.trace import TraceContext
 from agente_salas.constantes import (
+    CHAVE_TRACEPARENT,
     CLIENTE_MCP_NOME,
     PREFIXO_VERSAO_POLITICA,
     PROTOCOLO_MCP,
@@ -28,6 +28,7 @@ from agente_salas.constantes import (
 )
 from agente_salas.domain.pendencia import ArgsReserva, PendenciaMRTR, RespostaElicitation
 from agente_salas.domain.resultados import Concluido, Falhou, PrecisaEntrada, Recusado
+from agente_salas.domain.trace import TraceContext
 
 
 class ErroDescoberta(Exception):
@@ -48,7 +49,12 @@ async def _recusar_elicitation(
 
 
 class ClienteSalas:
-    """Host MCP do agente: descoberta, leitura de política e o ciclo de `reservar_sala`."""
+    """Host MCP do agente: descoberta, leitura de política e o ciclo de `reservar_sala`.
+
+    Uma instância vive o processo inteiro do agente (aberta no lifespan do app):
+    o id JSON-RPC é monotônico por `Client`, então só assim o retry de uma Task
+    sai com id novo (HOST-07) — um `Client` por Task recomeçaria em `id=1`.
+    """
 
     def __init__(self, servidor: MCPServer | str) -> None:
         self._client = Client(
@@ -57,6 +63,7 @@ class ClienteSalas:
             client_info=types.Implementation(name=CLIENTE_MCP_NOME, version=VERSAO_AGENTE),
             elicitation_callback=_recusar_elicitation,
         )
+        self._descoberto = False
 
     async def __aenter__(self) -> Self:
         await self._client.__aenter__()
@@ -75,6 +82,7 @@ class ClienteSalas:
         nomes = {tool.name for tool in resultado.tools}
         if TOOL_RESERVAR_SALA not in nomes:
             raise ErroDescoberta(f"tool {TOOL_RESERVAR_SALA!r} não encontrada em tools/list")
+        self._descoberto = True
 
     async def versao_politica(self, trace: TraceContext) -> str:
         resultado = await self._client.session.read_resource(URI_POLITICA, meta=_meta(trace))
@@ -120,6 +128,8 @@ class ClienteSalas:
         input_responses: types.InputResponses | None = None,
         request_state: str | None = None,
     ) -> Concluido | Falhou | Recusado | PrecisaEntrada:
+        if not self._descoberto:
+            await self.descobrir()
         resultado = await self._client.session.call_tool(
             TOOL_RESERVAR_SALA,
             _argumentos(args),
@@ -134,7 +144,7 @@ class ClienteSalas:
 def _meta(trace: TraceContext) -> types.RequestParamsMeta:
     # `RequestParamsMeta` é um TypedDict aberto (`extra_items=Any`, PEP 728); o mypy
     # 2.4 ainda não infere chaves extras num literal, daí o `cast` (ver DESAFIOS.md).
-    return cast(types.RequestParamsMeta, {"traceparent": trace.traceparent})
+    return cast(types.RequestParamsMeta, {CHAVE_TRACEPARENT: trace.traceparent})
 
 
 def _argumentos(args: ArgsReserva) -> dict[str, Any]:

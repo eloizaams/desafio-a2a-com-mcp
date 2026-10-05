@@ -16,9 +16,9 @@ import os
 import sys
 
 from agente_salas.adapters.mcp_client.cliente import ClienteSalas
-from agente_salas.adapters.mcp_client.trace import iniciar
 from agente_salas.domain.pendencia import ArgsReserva, RespostaElicitation
 from agente_salas.domain.resultados import Concluido, Falhou, PrecisaEntrada, Recusado
+from agente_salas.domain.trace import iniciar
 from agente_salas.infra.config import ErroConfig, carregar_config
 
 ARGS_LIVRE = ArgsReserva(

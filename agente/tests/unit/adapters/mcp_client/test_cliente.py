@@ -2,9 +2,9 @@ import pytest
 from mcp.server.mcpserver import MCPServer
 
 from agente_salas.adapters.mcp_client.cliente import ClienteSalas, ErroDescoberta
-from agente_salas.adapters.mcp_client.trace import iniciar
 from agente_salas.domain.pendencia import ArgsReserva, RespostaElicitation
 from agente_salas.domain.resultados import Concluido, Falhou, PrecisaEntrada, Recusado
+from agente_salas.domain.trace import iniciar
 
 from .fake_servidor import ALTERNATIVAS, SALA_INEXISTENTE, SALA_OCUPADA, criar_servidor_fake
 
@@ -43,6 +43,14 @@ async def test_descobrir_falha_quando_tool_nao_existe() -> None:
     async with ClienteSalas(servidor_vazio) as cliente:
         with pytest.raises(ErroDescoberta):
             await cliente.descobrir()
+
+
+async def test_reservar_descobre_as_tools_antes_do_primeiro_tools_call(trace) -> None:  # type: ignore[no-untyped-def]
+    """HOST-01 (lazy): sem `descobrir()` explícito, o 1º `reservar` faz `tools/list` antes."""
+    servidor_vazio = MCPServer(name="vazio", version="0.0.0")
+    async with ClienteSalas(servidor_vazio) as cliente:
+        with pytest.raises(ErroDescoberta):
+            await cliente.reservar(ARGS_LIVRE, trace)
 
 
 async def test_reservar_em_intervalo_livre_conclui(trace) -> None:  # type: ignore[no-untyped-def]
