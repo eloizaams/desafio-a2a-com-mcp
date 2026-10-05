@@ -6,7 +6,7 @@
 - **Fase:** 3 — agente como host MCP (`003-agente-host-mcp`, `feature/agente-host-mcp`) — concluída, aguardando revisão/merge → próxima: Fase 4 (A2A)
 - **Branch:** `feature/agente-host-mcp` (a partir de `develop`, já com o PR #7 mergeado)
 - **Próxima tarefa:** após merge do PR desta fase, iniciar a fase 4 (`docs/specs/004-*`, agente A2A: card completo, SendMessage, GetTask, máquina de estados) · modelo sugerido: Sonnet
-- **PR aberto:** (a abrir)
+- **PR aberto:** [#9](https://github.com/eloizaams/desafio-a2a-com-mcp/pull/9) `feature/agente-host-mcp` → `develop` (depende do [#8](https://github.com/eloizaams/desafio-a2a-com-mcp/pull/8), hardening retroativo da fase 2 — mergear antes ou junto)
 
 ## Validador
 | Data | Resultado | Observação |
