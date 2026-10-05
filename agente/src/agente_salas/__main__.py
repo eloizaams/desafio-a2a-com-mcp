@@ -14,7 +14,8 @@ def main() -> None:
     try:
         config = carregar_config(os.environ)
     except ErroConfig as erro:
-        sys.exit(f"Configuração inválida: {erro}")
+        print(f"Configuração inválida: {erro}", file=sys.stderr)
+        sys.exit(1)
     uvicorn.run(criar_app(config), host=HOST, port=config.porta)
 
 
