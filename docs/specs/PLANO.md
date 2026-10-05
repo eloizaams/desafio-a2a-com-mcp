@@ -11,7 +11,7 @@
 | 1 | Stack | Python 3.12 (wire de referência foi gerado com o SDK Python `mcp`) | 0001 |
 | 2 | Servidor MCP | `mcp==2.3.0` (SDK oficial v2, spec `2026-07-28`), Streamable HTTP stateless | 0001 |
 | 3 | Lado A2A | `a2a-sdk==1.2.2` (AgentExecutor + TaskStore em memória) | 0002 |
-| 4 | Cliente MCP do agente | **Spike T0.4** decide: `ClientSession` do SDK *se* expuser `input_required` cru; senão cliente fino `httpx` | 0003 (pendente do spike) |
+| 4 | Cliente MCP do agente | `mcp.Client(mode="2026-07-28")` + `client.session.call_tool(..., allow_input_required=True)` (spike T0.4: 4/4 critérios ok) | 0003 |
 | 5 | Dependências | `uv` workspace + `uv.lock`, um `pyproject.toml` por processo | 0004 |
 | 6 | Arquitetura | Camadas enxutas (domain / application / adapters / infra) | 0005 |
 | 7 | `requestState` | Utilitário de selagem do SDK, chave `REQUEST_STATE_SECRET`, TTL **10 min** | 0006 |
@@ -57,7 +57,7 @@
 │   │   └── __main__.py            # python -m central_salas
 │   └── tests/{unit,integration}/
 └── agente/
-    ├── pyproject.toml             # deps: a2a-sdk==1.2.2, httpx, (mcp se o spike aprovar), uvicorn
+    ├── pyproject.toml             # deps: a2a-sdk[http-server]==1.2.2, mcp==2.3.0, uvicorn
     ├── src/agente_salas/
     │   ├── domain/                # comando.py (parse "reservar ..." / "escolha=..."), artefato.py
     │   ├── application/           # ponte.py (orquestra Task ↔ MRTR), pendencias.py (porta simples)
@@ -152,7 +152,7 @@ A criar em `.claude/skills/` (Fase 0):
 
 | Risco | Mitigação |
 |-------|-----------|
-| SDK cliente MCP fecha o MRTR sozinho (callback) e a Task nunca pausa | Spike T0.4; cliente sem callback ou cliente `httpx` fino |
+| SDK cliente MCP fecha o MRTR sozinho (callback) e a Task nunca pausa | `allow_input_required=True` + callback-guarda que levanta erro (ADR-0003) |
 | Reuso do id JSON-RPC no retry | Gerador de id monotônico/aleatório por request; teste unitário dedicado |
 | `a2a-sdk` divergir do wire (forma do card, `result.task`) | Teste de integração comparando com `exemplos/wire/07..10`; skill `conferir-wire` |
 | Rodar validador 2× sem reiniciar (falso negativo) | Skill `rodar-validador` sempre reinicia |
