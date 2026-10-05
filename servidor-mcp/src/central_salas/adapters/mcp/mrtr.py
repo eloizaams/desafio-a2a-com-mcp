@@ -7,6 +7,7 @@ classe pydantic — por isso o enum dinâmico via `create_model`/`Literal`.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any, Literal
 
 from mcp.server.mcpserver import Elicit
@@ -22,7 +23,7 @@ from central_salas.infra.repositorio import RepositorioEmMemoria
 
 def criar_resolver_escolha_de_sala(
     repositorio: RepositorioEmMemoria,
-) -> Any:
+) -> Callable[[str, str, str], Elicit[Any] | None]:
     """Factory: cria o resolver `escolha_de_sala` com o repositório por closure."""
 
     def escolha_de_sala(sala: str, inicio: str, fim: str) -> Elicit[Any] | None:
