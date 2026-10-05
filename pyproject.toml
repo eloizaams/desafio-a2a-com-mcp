@@ -1,0 +1,68 @@
+[project]
+name = "a-ponte"
+version = "0.1.0"
+description = "Workspace do desafio A Ponte (A2A + MCP)"
+requires-python = ">=3.10,<3.13"
+dependencies = ["servidor-mcp", "agente"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+servidor-mcp = { workspace = true }
+agente = { workspace = true }
+
+[tool.uv.workspace]
+members = ["servidor-mcp", "agente"]
+
+[dependency-groups]
+dev = [
+    "httpx==0.28.1",
+    "mypy==2.4.0",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "ruff==0.16.10",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["dados", "exemplos", "validador"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PL", "N"]
+# N818: exceções seguem nomes do domínio em português (ErroX), ver constitution.md
+ignore = ["RUF001", "RUF002", "RUF003", "N818"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["central_salas", "agente_salas"]
+
+[tool.ruff.lint.per-file-ignores]
+# PLR2004: valores mágicos são esperados em fixtures/asserts de teste.
+# PLR0913/PLR0917: helpers de teste espelham os campos do wire MCP 1:1
+# (sala/inicio/fim/responsavel/chave/requestState); dividir isso em menos
+# parâmetros so para agradar o linter reduziria a clareza do teste.
+"**/tests/**" = ["PLR2004", "PLR0913", "PLR0917"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["servidor-mcp/src", "agente/src"]
+mypy_path = ["servidor-mcp/src", "agente/src"]
+explicit_package_bases = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "central_salas.domain.*",
+    "central_salas.application.*",
+    "agente_salas.domain.*",
+    "agente_salas.application.*",
+]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["servidor-mcp/tests", "agente/tests"]
+asyncio_mode = "auto"
+addopts = "--import-mode=importlib"

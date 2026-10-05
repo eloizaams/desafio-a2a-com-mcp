@@ -4,3 +4,7 @@ __pycache__/
 node_modules/
 dist/
 *.log
+logs/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
