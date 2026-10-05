@@ -1,8 +1,10 @@
 import json
 
+import pytest
 from starlette.testclient import TestClient
 
 from agente_salas.adapters.a2a.app import criar_app
+from agente_salas.application.pendencias import Pendencias, TaskPausada
 from agente_salas.infra.config import ConfigAgente
 
 from ..mcp_client.fake_servidor import SALA_INEXISTENTE, SALA_OCUPADA, criar_servidor_fake
@@ -140,3 +142,38 @@ def test_recusar_termina_a_task_em_canceled() -> None:
         corpo = _enviar(cliente, "escolha=recusar", task_id=task_id)
     estado, _ = _status(corpo)
     assert estado == "TASK_STATE_CANCELED"
+
+
+def test_nenhuma_resposta_a2a_carrega_o_request_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    """PONTE-02 / V34: varre card, SendMessage e GetTask de fluxos completos."""
+    guardados: list[str] = []
+    guardar_original = Pendencias.guardar
+
+    def espiar(self: Pendencias, task_id: str, pausa: TaskPausada) -> None:
+        guardados.append(pausa.pendencia.request_state)
+        guardar_original(self, task_id, pausa)
+
+    monkeypatch.setattr(Pendencias, "guardar", espiar)
+    app = criar_app(CONFIG, servidor_mcp=criar_servidor_fake())
+    corpos: list[str] = []
+    with TestClient(app) as cliente:
+        corpos.append(cliente.get("/.well-known/agent-card.json").text)
+        concluida = _enviar(cliente, PEDIDO_OCUPADO)["result"]["task"]["id"]
+        recusada = _enviar(cliente, PEDIDO_OCUPADO)["result"]["task"]["id"]
+        for task_id, texto in [
+            (concluida, "escolha=sala-aquario"),
+            (concluida, "nao sei"),
+            (concluida, "escolha=sala-mirante"),
+            (recusada, "escolha=recusar"),
+        ]:
+            corpos.append(json.dumps(_enviar(cliente, texto, task_id=task_id)))
+        for task_id in (concluida, recusada):
+            resposta = cliente.post(
+                "/a2a",
+                json={"jsonrpc": "2.0", "id": 9, "method": "GetTask", "params": {"id": task_id}},
+            )
+            corpos.append(resposta.text)
+
+    assert len(guardados) == 2
+    assert all(guardados)
+    assert not [estado for estado in guardados for corpo in corpos if estado in corpo]
