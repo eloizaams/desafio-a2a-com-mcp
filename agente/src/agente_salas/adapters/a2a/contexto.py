@@ -31,6 +31,8 @@ from a2a.server.context import ServerCallContext
 from a2a.server.routes.common import DefaultServerCallContextBuilder
 from a2a.utils.constants import PROTOCOL_VERSION_1_0, VERSION_HEADER
 
+from agente_salas.constantes import ESTADO_HEADERS
+
 if TYPE_CHECKING:
     from a2a.server.tasks import TaskStore
     from a2a.types import SendMessageRequest, Task
@@ -40,7 +42,7 @@ if TYPE_CHECKING:
 class ContextoComVersaoPadrao(DefaultServerCallContextBuilder):
     def build(self, request: Request) -> ServerCallContext:
         contexto = super().build(request)
-        cabecalhos = contexto.state.setdefault("headers", {})
+        cabecalhos = contexto.state.setdefault(ESTADO_HEADERS, {})
         cabecalhos.setdefault(VERSION_HEADER, PROTOCOL_VERSION_1_0)
         return contexto
 
@@ -48,7 +50,6 @@ class ContextoComVersaoPadrao(DefaultServerCallContextBuilder):
 class ContextoDaTaskExistente(SimpleRequestContextBuilder):
     def __init__(self, task_store: TaskStore) -> None:
         super().__init__(task_store=task_store)
-        self._tasks = task_store
 
     async def build(
         self,
@@ -58,8 +59,8 @@ class ContextoDaTaskExistente(SimpleRequestContextBuilder):
         context_id: str | None = None,
         task: Task | None = None,
     ) -> RequestContext:
-        if task_id and not context_id:
-            existente = await self._tasks.get(task_id, context)
+        if task_id and not context_id and self._task_store is not None:
+            existente = await self._task_store.get(task_id, context)
             if existente is not None:
                 context_id = existente.context_id
         return await super().build(context, params, task_id, context_id, task)

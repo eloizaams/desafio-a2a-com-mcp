@@ -263,3 +263,15 @@ async def test_falha_no_retry_remove_a_pendencia() -> None:
 async def test_continuar_task_sem_pendencia_e_erro() -> None:
     with pytest.raises(ErroSemPendencia):
         await _ponte(ClienteFake([])).continuar("task-x", "escolha=sala-fusca")
+
+
+async def test_erro_de_protocolo_no_retry_nao_deixa_pendencia_orfa() -> None:
+    """MCP fora do ar ou requestState expirado: a Task vai a FAILED pelo SDK."""
+    pendencias = Pendencias()
+    cliente = ClienteFake([_precisa_entrada()])
+    ponte = _ponte(cliente, pendencias)
+    await _pausar(ponte)
+
+    with pytest.raises(IndexError):  # roteiro vazio simula a exceção do cliente MCP
+        await ponte.continuar("task-1", "escolha=sala-fusca")
+    assert pendencias.obter("task-1") is None

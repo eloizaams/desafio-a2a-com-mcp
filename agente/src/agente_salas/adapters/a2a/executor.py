@@ -18,6 +18,7 @@ from a2a.types import Message, Part, TaskState
 from a2a.utils.errors import UnsupportedOperationError
 
 from agente_salas.application.ponte import Desfecho, Pausado, Ponte
+from agente_salas.constantes import CHAVE_TRACEPARENT, ESTADO_HEADERS
 from agente_salas.domain.resultados import Concluido, Falhou, Recusado
 from agente_salas.domain.trace import iniciar
 
@@ -66,8 +67,8 @@ async def _publicar(updater: TaskUpdater, desfecho: Desfecho) -> None:
 
 
 def _traceparent_recebido(context: RequestContext) -> str | None:
-    cabecalhos = context.call_context.state.get("headers") or {}
-    valor = cabecalhos.get("traceparent")
+    cabecalhos = context.call_context.state.get(ESTADO_HEADERS) or {}
+    valor = cabecalhos.get(CHAVE_TRACEPARENT)
     return valor if isinstance(valor, str) else None
 
 

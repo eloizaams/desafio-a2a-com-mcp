@@ -81,6 +81,9 @@ class Ponte:
         if resposta is None:
             return _pausado(pausa.pendencia)
 
+        # Retirada antes do retry: se o cliente MCP levantar (servidor fora do ar,
+        # requestState expirado), o SDK leva a Task a FAILED e nada fica órfão.
+        self._pendencias.remover(task_id)
         resultado = await self._cliente.retomar(
             pausa.args, pausa.pendencia, resposta, pausa.trace.com_novo_span()
         )

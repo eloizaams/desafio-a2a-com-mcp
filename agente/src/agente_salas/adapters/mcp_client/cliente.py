@@ -18,6 +18,7 @@ from mcp.client.session import ClientRequestContext
 from mcp.server.mcpserver import MCPServer
 
 from agente_salas.constantes import (
+    CHAVE_TRACEPARENT,
     CLIENTE_MCP_NOME,
     PREFIXO_VERSAO_POLITICA,
     PROTOCOLO_MCP,
@@ -143,7 +144,7 @@ class ClienteSalas:
 def _meta(trace: TraceContext) -> types.RequestParamsMeta:
     # `RequestParamsMeta` é um TypedDict aberto (`extra_items=Any`, PEP 728); o mypy
     # 2.4 ainda não infere chaves extras num literal, daí o `cast` (ver DESAFIOS.md).
-    return cast(types.RequestParamsMeta, {"traceparent": trace.traceparent})
+    return cast(types.RequestParamsMeta, {CHAVE_TRACEPARENT: trace.traceparent})
 
 
 def _argumentos(args: ArgsReserva) -> dict[str, Any]:
