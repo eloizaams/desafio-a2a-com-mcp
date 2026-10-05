@@ -1,5 +1,8 @@
 """Montagem do app A2A do agente."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.routes import create_agent_card_routes, create_jsonrpc_routes
 from a2a.server.tasks import InMemoryTaskStore
@@ -22,8 +25,8 @@ def criar_app(config: ConfigAgente, servidor_mcp: MCPServer | str | None = None)
     `servidor_mcp` troca o alvo do `ClienteSalas` (testes); padrão é `config.mcp_url`.
     """
     card = criar_agent_card(config)
-    alvo = servidor_mcp or config.mcp_url
-    ponte = Ponte(lambda: ClienteSalas(alvo), Pendencias())
+    cliente_mcp = ClienteSalas(servidor_mcp or config.mcp_url)
+    ponte = Ponte(cliente_mcp, Pendencias())
     handler = DefaultRequestHandler(
         agent_executor=ExecutorReservaDeSala(ponte),
         task_store=InMemoryTaskStore(),
@@ -32,4 +35,10 @@ def criar_app(config: ConfigAgente, servidor_mcp: MCPServer | str | None = None)
     rotas = create_agent_card_routes(card) + create_jsonrpc_routes(
         handler, CAMINHO_A2A, context_builder=ContextoComVersaoPadrao()
     )
-    return Starlette(routes=rotas)
+
+    @asynccontextmanager
+    async def ciclo_de_vida(_app: Starlette) -> AsyncIterator[None]:
+        async with cliente_mcp:
+            yield
+
+    return Starlette(routes=rotas, lifespan=ciclo_de_vida)

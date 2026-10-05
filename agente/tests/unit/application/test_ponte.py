@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 
 import pytest
@@ -88,11 +86,7 @@ class ClienteFake:
 
 
 def _ponte(cliente: ClienteFake, pendencias: Pendencias | None = None) -> Ponte:
-    @asynccontextmanager
-    async def abrir() -> AsyncIterator[ClienteFake]:
-        yield cliente
-
-    return Ponte(abrir, pendencias or Pendencias())
+    return Ponte(cliente, pendencias or Pendencias())
 
 
 TRACE = iniciar("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01")

@@ -48,7 +48,12 @@ async def _recusar_elicitation(
 
 
 class ClienteSalas:
-    """Host MCP do agente: descoberta, leitura de política e o ciclo de `reservar_sala`."""
+    """Host MCP do agente: descoberta, leitura de política e o ciclo de `reservar_sala`.
+
+    Uma instância vive o processo inteiro do agente (aberta no lifespan do app):
+    o id JSON-RPC é monotônico por `Client`, então só assim o retry de uma Task
+    sai com id novo (HOST-07) — um `Client` por Task recomeçaria em `id=1`.
+    """
 
     def __init__(self, servidor: MCPServer | str) -> None:
         self._client = Client(
@@ -57,6 +62,7 @@ class ClienteSalas:
             client_info=types.Implementation(name=CLIENTE_MCP_NOME, version=VERSAO_AGENTE),
             elicitation_callback=_recusar_elicitation,
         )
+        self._descoberto = False
 
     async def __aenter__(self) -> Self:
         await self._client.__aenter__()
@@ -75,6 +81,7 @@ class ClienteSalas:
         nomes = {tool.name for tool in resultado.tools}
         if TOOL_RESERVAR_SALA not in nomes:
             raise ErroDescoberta(f"tool {TOOL_RESERVAR_SALA!r} não encontrada em tools/list")
+        self._descoberto = True
 
     async def versao_politica(self, trace: TraceContext) -> str:
         resultado = await self._client.session.read_resource(URI_POLITICA, meta=_meta(trace))
@@ -120,6 +127,8 @@ class ClienteSalas:
         input_responses: types.InputResponses | None = None,
         request_state: str | None = None,
     ) -> Concluido | Falhou | Recusado | PrecisaEntrada:
+        if not self._descoberto:
+            await self.descobrir()
         resultado = await self._client.session.call_tool(
             TOOL_RESERVAR_SALA,
             _argumentos(args),

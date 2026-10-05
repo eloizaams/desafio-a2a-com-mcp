@@ -8,8 +8,6 @@ Domínio (conflito, alternativas) é sempre do servidor; aqui só se traduz prot
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -41,9 +39,6 @@ class ClienteReserva(Protocol):
     ) -> Concluido | Falhou | Recusado | PrecisaEntrada: ...
 
 
-AbrirCliente = Callable[[], AbstractAsyncContextManager[ClienteReserva]]
-
-
 @dataclass(frozen=True)
 class Pausado:
     """A Task deve ficar em INPUT_REQUIRED com `texto` como mensagem de status."""
@@ -59,8 +54,8 @@ class ErroSemPendencia(Exception):
 
 
 class Ponte:
-    def __init__(self, abrir_cliente: AbrirCliente, pendencias: Pendencias) -> None:
-        self._abrir_cliente = abrir_cliente
+    def __init__(self, cliente: ClienteReserva, pendencias: Pendencias) -> None:
+        self._cliente = cliente
         self._pendencias = pendencias
 
     async def iniciar(self, task_id: str, texto: str, trace: TraceContext) -> Desfecho:
@@ -73,8 +68,7 @@ class Ponte:
             return Falhou(MSG_COMANDO_INVALIDO)
 
         args = _args(comando)
-        async with self._abrir_cliente() as cliente:
-            resultado = await cliente.reservar(args, trace.com_novo_span())
+        resultado = await self._cliente.reservar(args, trace.com_novo_span())
         return self._desfecho(task_id, args, trace, resultado)
 
     async def continuar(self, task_id: str, texto: str) -> Desfecho:
@@ -87,10 +81,9 @@ class Ponte:
         if resposta is None:
             return _pausado(pausa.pendencia)
 
-        async with self._abrir_cliente() as cliente:
-            resultado = await cliente.retomar(
-                pausa.args, pausa.pendencia, resposta, pausa.trace.com_novo_span()
-            )
+        resultado = await self._cliente.retomar(
+            pausa.args, pausa.pendencia, resposta, pausa.trace.com_novo_span()
+        )
         return self._desfecho(task_id, pausa.args, pausa.trace, resultado)
 
     def _desfecho(

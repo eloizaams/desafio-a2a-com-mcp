@@ -45,6 +45,14 @@ async def test_descobrir_falha_quando_tool_nao_existe() -> None:
             await cliente.descobrir()
 
 
+async def test_reservar_descobre_as_tools_antes_do_primeiro_tools_call(trace) -> None:  # type: ignore[no-untyped-def]
+    """HOST-01 (lazy): sem `descobrir()` explícito, o 1º `reservar` faz `tools/list` antes."""
+    servidor_vazio = MCPServer(name="vazio", version="0.0.0")
+    async with ClienteSalas(servidor_vazio) as cliente:
+        with pytest.raises(ErroDescoberta):
+            await cliente.reservar(ARGS_LIVRE, trace)
+
+
 async def test_reservar_em_intervalo_livre_conclui(trace) -> None:  # type: ignore[no-untyped-def]
     async with ClienteSalas(criar_servidor_fake()) as cliente:
         await cliente.descobrir()
