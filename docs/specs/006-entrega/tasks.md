@@ -5,4 +5,4 @@
 - [x] T6.3 `security-review` + conferir diffs proibidos
 - [x] T6.4 Clone limpo em /tmp, seguir README, `rodar-validador`, colar saída no README
 - [x] T6.5 Roteiro AV1–AV13 manual (curl dos wires 08, 03; restart do MCP; sem elicitation)
-- [ ] T6.6 PR release → `main`, tag `v1.0.0`, back-merge em `develop`
+- [x] T6.6 PR release → `main`, tag `v1.0.0`, back-merge em `develop`
