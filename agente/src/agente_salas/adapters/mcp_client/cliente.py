@@ -171,6 +171,11 @@ def _pedido_de_entrada(resultado: types.InputRequiredResult) -> PrecisaEntrada:
         pedido.params, types.ElicitRequestFormParams
     ):
         raise ErroRespostaInesperada(f"input_request inesperado para {chave!r}: {pedido.method!r}")
+    if resultado.request_state is None:
+        # O MRTR deste servidor sempre sela o request_state junto com a elicitation
+        # (ADR-0006); sem ele não há como retomar — retry com "" seria indistinguível
+        # de um requestState adulterado, só que detectado tarde (no servidor) em vez de aqui.
+        raise ErroRespostaInesperada(f"input_required sem requestState para {chave!r}")
     campo, definicao = next(iter(pedido.params.requested_schema["properties"].items()))
     alternativas = definicao.get("enum") or [definicao["const"]]
     return PrecisaEntrada(
@@ -178,7 +183,7 @@ def _pedido_de_entrada(resultado: types.InputRequiredResult) -> PrecisaEntrada:
             chave=chave,
             campo=campo,
             alternativas=tuple(alternativas),
-            request_state=resultado.request_state or "",
+            request_state=resultado.request_state,
         ),
         mensagem=pedido.params.message,
     )
