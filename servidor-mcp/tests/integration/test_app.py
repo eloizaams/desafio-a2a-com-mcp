@@ -8,6 +8,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from central_salas.adapters.mcp.server import criar_app
+from central_salas.constantes import ERRO_SEM_ALTERNATIVAS, TTL_REQUEST_STATE_SEGUNDOS
 from central_salas.infra.config import ConfigServidor
 
 PROTOCOLO = "2026-07-28"
@@ -23,13 +24,17 @@ def _requisicao(
     metodo: str,
     params: Mapping[str, Any],
     *,
+    id_: int = 1,
     nome: str | None = None,
     omitir: str | None = None,
     traceparent: str | None = None,
+    capabilities: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, str]]:
     meta: dict[str, Any] = {
         "io.modelcontextprotocol/protocolVersion": PROTOCOLO,
-        "io.modelcontextprotocol/clientCapabilities": CAP_COM_ELICITATION,
+        "io.modelcontextprotocol/clientCapabilities": (
+            CAP_COM_ELICITATION if capabilities is None else capabilities
+        ),
     }
     if traceparent:
         meta["traceparent"] = traceparent
@@ -37,7 +42,7 @@ def _requisicao(
         meta.pop("io.modelcontextprotocol/protocolVersion")
     if omitir == "clientCapabilities":
         meta.pop("io.modelcontextprotocol/clientCapabilities")
-    corpo = {"jsonrpc": "2.0", "id": 1, "method": metodo, "params": {**params, "_meta": meta}}
+    corpo = {"jsonrpc": "2.0", "id": id_, "method": metodo, "params": {**params, "_meta": meta}}
     cabecalhos = {
         "Accept": "application/json, text/event-stream",
         "MCP-Protocol-Version": PROTOCOLO,
@@ -48,15 +53,61 @@ def _requisicao(
     return corpo, cabecalhos
 
 
-def _chamar(metodo: str, params: Mapping[str, Any], **kw: Any) -> tuple[int, dict[str, Any]]:
+def _enviar(
+    cliente: TestClient, metodo: str, params: Mapping[str, Any], **kw: Any
+) -> tuple[int, dict[str, Any]]:
     corpo, cabecalhos = _requisicao(metodo, params, **kw)
-    with TestClient(_app(), base_url="http://127.0.0.1:7301") as cliente:
-        resposta = cliente.post("/mcp", json=corpo, headers=cabecalhos)
+    resposta = cliente.post("/mcp", json=corpo, headers=cabecalhos)
     return resposta.status_code, resposta.json()
+
+
+def _chamar(metodo: str, params: Mapping[str, Any], **kw: Any) -> tuple[int, dict[str, Any]]:
+    with TestClient(_app(), base_url="http://127.0.0.1:7301") as cliente:
+        return _enviar(cliente, metodo, params, **kw)
 
 
 def _chamar_tool(nome: str, argumentos: Mapping[str, Any], **kw: Any) -> tuple[int, dict[str, Any]]:
     return _chamar("tools/call", {"name": nome, "arguments": argumentos}, nome=nome, **kw)
+
+
+def _reservar(
+    cliente: TestClient, sala: str, inicio: str, fim: str, responsavel: str = "Doc", **kw: Any
+) -> tuple[int, dict[str, Any]]:
+    return _enviar(
+        cliente,
+        "tools/call",
+        {
+            "name": "reservar_sala",
+            "arguments": {"sala": sala, "inicio": inicio, "fim": fim, "responsavel": responsavel},
+        },
+        nome="reservar_sala",
+        **kw,
+    )
+
+
+def _retomar(
+    cliente: TestClient,
+    sala: str,
+    inicio: str,
+    fim: str,
+    chave: str,
+    resposta_elicitation: Mapping[str, Any],
+    request_state: str,
+    responsavel: str = "Doc",
+    **kw: Any,
+) -> tuple[int, dict[str, Any]]:
+    return _enviar(
+        cliente,
+        "tools/call",
+        {
+            "name": "reservar_sala",
+            "arguments": {"sala": sala, "inicio": inicio, "fim": fim, "responsavel": responsavel},
+            "inputResponses": {chave: resposta_elicitation},
+            "requestState": request_state,
+        },
+        nome="reservar_sala",
+        **kw,
+    )
 
 
 def _texto(resultado: Mapping[str, Any]) -> str:
@@ -254,3 +305,251 @@ def test_mcp09_log_stderr_traz_method_id_traceparent(capsys: pytest.CaptureFixtu
     assert "method=tools/list" in linha
     assert "id=1" in linha
     assert traceparent in linha
+
+
+# MRTR (V13-V20): conflito -> input_required -> retry. Dataset de dados/*.json:
+# sala-garagem ocupada 14h-15h (res-0001), sala-fusca ocupada 16h-17h (res-0002).
+
+
+def _pendencia(resultado: Mapping[str, Any]) -> tuple[str, str]:
+    pedidos = resultado["inputRequests"]
+    chave = next(iter(pedidos))
+    return chave, resultado["requestState"]
+
+
+def test_v13_conflito_devolve_input_required_com_inputrequests_e_requeststate() -> None:
+    _, resposta = _chamar_tool(
+        "reservar_sala",
+        {
+            "sala": "sala-garagem",
+            "inicio": "2026-11-03T14:00:00-03:00",
+            "fim": "2026-11-03T15:00:00-03:00",
+            "responsavel": "Marty",
+        },
+    )
+    resultado = resposta["result"]
+    assert resultado["resultType"] == "input_required"
+    chave, estado = _pendencia(resultado)
+    assert chave
+    assert estado
+
+
+def test_v14_elicitation_e_form_mode_com_alternativas_na_ordem_certa() -> None:
+    _, resposta = _chamar_tool(
+        "reservar_sala",
+        {
+            "sala": "sala-garagem",
+            "inicio": "2026-11-03T14:00:00-03:00",
+            "fim": "2026-11-03T15:00:00-03:00",
+            "responsavel": "Marty",
+        },
+    )
+    chave, _ = _pendencia(resposta["result"])
+    pedido = resposta["result"]["inputRequests"][chave]["params"]
+    assert pedido["mode"] == "form"
+    assert pedido["requestedSchema"]["properties"]["sala"]["enum"] == [
+        "sala-fusca",
+        "sala-mirante",
+    ]
+
+
+def test_v15_conflito_sem_capability_elicitation_devolve_32021_e_http_400() -> None:
+    status, resposta = _chamar_tool(
+        "reservar_sala",
+        {
+            "sala": "sala-garagem",
+            "inicio": "2026-11-03T14:00:00-03:00",
+            "fim": "2026-11-03T15:00:00-03:00",
+            "responsavel": "Marty",
+        },
+        capabilities={},
+    )
+    assert status == 400
+    assert resposta["error"]["code"] == -32021
+    assert "requiredCapabilities" in resposta["error"]["data"]
+
+
+def test_v16_retry_com_inputresponses_e_requeststate_conclui_a_reserva() -> None:
+    with TestClient(_app(), base_url="http://127.0.0.1:7301") as cliente:
+        _, pausa = _reservar(
+            cliente, "sala-fusca", "2026-11-03T16:00:00-03:00", "2026-11-03T17:00:00-03:00"
+        )
+        chave, estado = _pendencia(pausa["result"])
+        _, resposta = _retomar(
+            cliente,
+            "sala-fusca",
+            "2026-11-03T16:00:00-03:00",
+            "2026-11-03T17:00:00-03:00",
+            chave,
+            {"action": "accept", "content": {"sala": "sala-garagem"}},
+            estado,
+            id_=2,
+        )
+    resultado = resposta["result"]
+    assert resultado["resultType"] == "complete"
+    assert resultado["isError"] is False
+    assert resultado["structuredContent"]["sala"] == "sala-garagem"
+    assert resultado["structuredContent"]["reservado"] is True
+
+
+def test_v17_requeststate_adulterado_e_rejeitado_com_32602() -> None:
+    with TestClient(_app(), base_url="http://127.0.0.1:7301") as cliente:
+        _, pausa = _reservar(
+            cliente, "sala-garagem", "2026-11-03T14:00:00-03:00", "2026-11-03T15:00:00-03:00"
+        )
+        chave, estado = _pendencia(pausa["result"])
+        adulterado = estado[:-6] + ("AAAAAA" if not estado.endswith("AAAAAA") else "BBBBBB")
+        _, resposta = _retomar(
+            cliente,
+            "sala-garagem",
+            "2026-11-03T14:00:00-03:00",
+            "2026-11-03T15:00:00-03:00",
+            chave,
+            {"action": "accept", "content": {"sala": "sala-fusca"}},
+            adulterado,
+            id_=2,
+        )
+    assert resposta["error"]["code"] == -32602
+
+
+def test_v18_argumentos_adulterados_no_retry_nao_tomam_efeito() -> None:
+    with TestClient(_app(), base_url="http://127.0.0.1:7301") as cliente:
+        _reservar(
+            cliente,
+            "sala-garagem",
+            "2026-11-03T09:00:00-03:00",
+            "2026-11-03T10:00:00-03:00",
+            responsavel="Ocupante",
+        )
+        _, pausa = _reservar(
+            cliente,
+            "sala-garagem",
+            "2026-11-03T09:00:00-03:00",
+            "2026-11-03T10:00:00-03:00",
+            responsavel="Doc",
+            id_=2,
+        )
+        chave, estado = _pendencia(pausa["result"])
+        _, resposta = _retomar(
+            cliente,
+            "sala-mirante",
+            "2026-11-03T13:00:00-03:00",
+            "2026-11-03T14:00:00-03:00",
+            chave,
+            {"action": "accept", "content": {"sala": "sala-fusca"}},
+            estado,
+            responsavel="Biff",
+            id_=3,
+        )
+    # O SDK vincula o requestState a um digest de todos os argumentos selados
+    # (`_request_identity`); argumentos diferentes no retry mudam o digest e o
+    # pedido inteiro e rejeitado — nunca executa com os valores adulterados.
+    assert resposta["error"]["code"] == -32602
+
+
+def test_v19_recusa_conclui_sem_reservar_e_sem_iserror() -> None:
+    with TestClient(_app(), base_url="http://127.0.0.1:7301") as cliente:
+        _, pausa = _reservar(
+            cliente, "sala-garagem", "2026-11-03T14:00:00-03:00", "2026-11-03T15:00:00-03:00"
+        )
+        chave, estado = _pendencia(pausa["result"])
+        _, resposta = _retomar(
+            cliente,
+            "sala-garagem",
+            "2026-11-03T14:00:00-03:00",
+            "2026-11-03T15:00:00-03:00",
+            chave,
+            {"action": "decline"},
+            estado,
+            id_=2,
+        )
+    resultado = resposta["result"]
+    estruturado = resultado["structuredContent"]
+    assert resultado["resultType"] == "complete"
+    assert resultado["isError"] is False
+    assert estruturado == {
+        "reserva": None,
+        "reservado": False,
+        "sala": None,
+        "inicio": None,
+        "fim": None,
+        "responsavel": None,
+        "politica": None,
+        "motivo": "recusado",
+    }
+
+
+def test_v20_conflito_sem_alternativa_possivel_devolve_iserror_com_mensagem_exata() -> None:
+    with TestClient(_app(), base_url="http://127.0.0.1:7301") as cliente:
+        _reservar(cliente, "sala-mirante", "2026-11-03T11:00:00-03:00", "2026-11-03T12:00:00-03:00")
+        _, resposta = _reservar(
+            cliente,
+            "sala-mirante",
+            "2026-11-03T11:00:00-03:00",
+            "2026-11-03T12:00:00-03:00",
+            id_=2,
+        )
+    resultado = resposta["result"]
+    assert resultado["isError"] is True
+    assert ERRO_SEM_ALTERNATIVAS in _texto(resultado)
+
+
+def test_mrtr_retry_sobrevive_a_restart_do_processo() -> None:
+    """T2.6: nada em memoria entre pausa e retry — processo A pausa, processo B conclui."""
+    with TestClient(_app(), base_url="http://127.0.0.1:7301") as processo_a:
+        _, pausa = _reservar(
+            processo_a, "sala-garagem", "2026-11-03T14:00:00-03:00", "2026-11-03T15:00:00-03:00"
+        )
+    chave, estado = _pendencia(pausa["result"])
+
+    with TestClient(_app(), base_url="http://127.0.0.1:7301") as processo_b:
+        _, resposta = _retomar(
+            processo_b,
+            "sala-garagem",
+            "2026-11-03T14:00:00-03:00",
+            "2026-11-03T15:00:00-03:00",
+            chave,
+            {"action": "accept", "content": {"sala": "sala-fusca"}},
+            estado,
+            id_=2,
+        )
+    resultado = resposta["result"]
+    assert resultado["resultType"] == "complete"
+    assert resultado["isError"] is False
+    assert resultado["structuredContent"]["sala"] == "sala-fusca"
+
+
+class _RelogioFalso:
+    """Substitui `time.time()` dentro de `mcp.server.request_state` (T2.6: expiração)."""
+
+    def __init__(self, agora: float) -> None:
+        self.agora = agora
+
+    def time(self) -> float:
+        return self.agora
+
+
+def test_mrtr_requeststate_expirado_e_rejeitado_com_32602(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    relogio = _RelogioFalso(1_762_000_000.0)
+    monkeypatch.setattr("mcp.server.request_state.time", relogio)
+
+    with TestClient(_app(), base_url="http://127.0.0.1:7301") as cliente:
+        _, pausa = _reservar(
+            cliente, "sala-garagem", "2026-11-03T14:00:00-03:00", "2026-11-03T15:00:00-03:00"
+        )
+        chave, estado = _pendencia(pausa["result"])
+
+        relogio.agora += TTL_REQUEST_STATE_SEGUNDOS + 1
+        _, resposta = _retomar(
+            cliente,
+            "sala-garagem",
+            "2026-11-03T14:00:00-03:00",
+            "2026-11-03T15:00:00-03:00",
+            chave,
+            {"action": "accept", "content": {"sala": "sala-fusca"}},
+            estado,
+            id_=2,
+        )
+    assert resposta["error"]["code"] == -32602
