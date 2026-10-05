@@ -9,6 +9,9 @@ from starlette.applications import Starlette
 from agente_salas.adapters.a2a.card import criar_agent_card
 from agente_salas.adapters.a2a.contexto import ContextoComVersaoPadrao
 from agente_salas.adapters.a2a.executor import ExecutorReservaDeSala
+from agente_salas.adapters.mcp_client.cliente import ClienteSalas
+from agente_salas.application.pendencias import Pendencias
+from agente_salas.application.ponte import Ponte
 from agente_salas.constantes import CAMINHO_A2A
 from agente_salas.infra.config import ConfigAgente
 
@@ -19,8 +22,10 @@ def criar_app(config: ConfigAgente, servidor_mcp: MCPServer | str | None = None)
     `servidor_mcp` troca o alvo do `ClienteSalas` (testes); padrão é `config.mcp_url`.
     """
     card = criar_agent_card(config)
+    alvo = servidor_mcp or config.mcp_url
+    ponte = Ponte(lambda: ClienteSalas(alvo), Pendencias())
     handler = DefaultRequestHandler(
-        agent_executor=ExecutorReservaDeSala(servidor_mcp or config.mcp_url),
+        agent_executor=ExecutorReservaDeSala(ponte),
         task_store=InMemoryTaskStore(),
         agent_card=card,
     )

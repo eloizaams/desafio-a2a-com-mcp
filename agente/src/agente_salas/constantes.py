@@ -29,6 +29,9 @@ MSG_COMANDO_INVALIDO: Final = (
     "Comando invalido. Use: reservar sala=<id> inicio=<iso8601> fim=<iso8601> "
     "responsavel=<nome>, ou escolha=<id da sala> / escolha=recusar"
 )
+# Linha de pausa da Task em INPUT_REQUIRED (PONTE-01): "alternativas: sala-a, sala-b".
+PREFIXO_ALTERNATIVAS: Final = "alternativas: "
+SEPARADOR_ALTERNATIVAS: Final = ", "
 
 ENV_PORTA: Final = "AGENTE_PORT"
 ENV_MCP_URL: Final = "MCP_URL"

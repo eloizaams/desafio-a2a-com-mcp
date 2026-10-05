@@ -5,7 +5,7 @@ from starlette.testclient import TestClient
 from agente_salas.adapters.a2a.app import criar_app
 from agente_salas.infra.config import ConfigAgente
 
-from ..mcp_client.fake_servidor import SALA_INEXISTENTE, criar_servidor_fake
+from ..mcp_client.fake_servidor import SALA_INEXISTENTE, SALA_OCUPADA, criar_servidor_fake
 
 CONFIG = ConfigAgente(porta=7300, mcp_url="http://unused")
 
@@ -95,3 +95,48 @@ def test_get_task_reflete_estado_corrente() -> None:
     assert tarefa["id"] == task_id
     assert tarefa["contextId"]
     assert tarefa["status"]["state"] == "TASK_STATE_COMPLETED"
+
+
+PEDIDO_OCUPADO = (
+    f"reservar sala={SALA_OCUPADA} inicio=2026-11-03T14:00:00-03:00 "
+    "fim=2026-11-03T15:00:00-03:00 responsavel=Marty"
+)
+LINHA_PAUSA = "alternativas: sala-fusca, sala-mirante"
+
+
+def _status(corpo: dict) -> tuple[str, str]:
+    tarefa = corpo["result"]["task"]
+    partes = (tarefa["status"].get("message") or {}).get("parts") or []
+    return tarefa["status"]["state"], " ".join(p.get("text", "") for p in partes)
+
+
+def test_sala_ocupada_pausa_a_task_com_as_alternativas() -> None:
+    app = criar_app(CONFIG, servidor_mcp=criar_servidor_fake())
+    with TestClient(app) as cliente:
+        corpo = _enviar(cliente, PEDIDO_OCUPADO)
+    assert _status(corpo) == ("TASK_STATE_INPUT_REQUIRED", LINHA_PAUSA)
+
+
+def test_escolha_invalida_mantem_pausa_e_valida_conclui_na_sala_escolhida() -> None:
+    app = criar_app(CONFIG, servidor_mcp=criar_servidor_fake())
+    with TestClient(app) as cliente:
+        task_id = _enviar(cliente, PEDIDO_OCUPADO)["result"]["task"]["id"]
+        invalida = _enviar(cliente, "escolha=sala-aquario", task_id=task_id)
+        valida = _enviar(cliente, "escolha=sala-fusca", task_id=task_id)
+        terminal = _enviar(cliente, "escolha=sala-mirante", task_id=task_id)
+
+    assert _status(invalida) == ("TASK_STATE_INPUT_REQUIRED", LINHA_PAUSA)
+    tarefa = valida["result"]["task"]
+    assert tarefa["id"] == task_id
+    assert tarefa["status"]["state"] == "TASK_STATE_COMPLETED"
+    assert json.loads(tarefa["artifacts"][0]["parts"][0]["text"])["sala"] == "sala-fusca"
+    assert "error" in terminal
+
+
+def test_recusar_termina_a_task_em_canceled() -> None:
+    app = criar_app(CONFIG, servidor_mcp=criar_servidor_fake())
+    with TestClient(app) as cliente:
+        task_id = _enviar(cliente, PEDIDO_OCUPADO)["result"]["task"]["id"]
+        corpo = _enviar(cliente, "escolha=recusar", task_id=task_id)
+    estado, _ = _status(corpo)
+    assert estado == "TASK_STATE_CANCELED"
