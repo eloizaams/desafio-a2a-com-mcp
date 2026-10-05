@@ -96,7 +96,12 @@ class ClienteSalas:
             allow_input_required=True,
         )
         interpretado = _interpretar(resultado)
-        assert not isinstance(interpretado, Recusado)  # só pode vir de um retry (ver retomar)
+        if isinstance(interpretado, Recusado):
+            # Só pode vir de um retry (ver `retomar`): a 1ª chamada nunca carrega
+            # `inputResponses`, então o servidor não tem como devolver `reservado=False`.
+            raise ErroRespostaInesperada(
+                f"reservar() recebeu Recusado sem retry: motivo={interpretado.motivo!r}"
+            )
         return interpretado
 
     async def retomar(
