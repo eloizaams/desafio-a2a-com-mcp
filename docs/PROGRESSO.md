@@ -3,10 +3,10 @@
 > Atualizar ao fim de cada tarefa. Uma nova sessão começa lendo: este arquivo → `DESAFIOS.md` → `docs/specs/constitution.md` → `docs/specs/PLANO.md` → `tasks.md` da fase atual.
 
 ## Estado atual
-- **Fase:** 2 — MRTR em `reservar_sala` (`002-mrtr`, `feature/mcp-mrtr`) — T2.1–T2.6 concluídas
+- **Fase:** 2 — MRTR em `reservar_sala` (`002-mrtr`, `feature/mcp-mrtr`) — concluída, aguardando revisão/merge → próxima: Fase 3 (A2A)
 - **Branch:** `feature/mcp-mrtr` (a partir de `develop`)
-- **Próxima tarefa:** T2.7 de `docs/specs/002-mrtr/tasks.md` — só falta abrir o PR (checks e testes já verdes) · modelo sugerido: Sonnet/Haiku
-- **PR aberto:** — (a abrir para esta fase)
+- **Próxima tarefa:** após merge do PR #7, iniciar a fase 3 (`docs/specs/003-*`, agente A2A) · modelo sugerido: Opus no início (API do SDK A2A) → Sonnet
+- **PR aberto:** [#7](https://github.com/eloizaams/desafio-a2a-com-mcp/pull/7) `feature/mcp-mrtr` → `develop`
 
 ## Validador
 | Data | Resultado | Observação |
