@@ -21,8 +21,9 @@ git checkout -b feature/<nome-da-fase>     # nome em docs/specs/PLANO.md §4
 ## Finalizar feature
 1. Checks acima verdes + skill `rodar-validador` (checks esperados da fase).
 2. Atualizar `docs/PROGRESSO.md` e marcar `tasks.md`.
-3. `git push -u origin feature/<nome>` e abrir PR **para `develop`** com a skill `abrir-pr`.
-4. Após merge: `git checkout develop && git pull --ff-only && git branch -d feature/<nome>`.
+3. Rodar `/code-review` sobre o diff da branch (antes de publicar — nunca pular) e aplicar os achados relevantes.
+4. `git push -u origin feature/<nome>` e abrir PR **para `develop`** com a skill `abrir-pr`.
+5. Após merge: `git checkout develop && git pull --ff-only && git branch -d feature/<nome>`.
 
 ## Release (fase 6)
 ```bash
