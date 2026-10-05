@@ -18,5 +18,12 @@
 - **Middleware:** `MCPServer(middleware=[fn])`, `fn(ctx, call_next)`; `ctx.method`, `ctx.request_id`, `ctx.params["_meta"]["traceparent"]` disponíveis → log em stderr (MCP-xx).
 - **`serverInfo.version`:** sai vazio por padrão → passar a versão ao `MCPServer` (fase 1).
 
+## Notas da fase 001-servidor-mcp
+- **`_meta` obrigatório é 100% do SDK, sem middleware.** `classify_inbound_request` (`mcp.shared.inbound`) roda *antes* do dispatcher/middleware, numa ladder: `_meta` ausente ou sem `protocolVersion`/`clientCapabilities` → `INVALID_PARAMS` (-32602), mapeado para HTTP 400 por `ERROR_CODE_HTTP_STATUS`. Confirma MCP-01/V04/V05 sem nenhum código nosso.
+- **Tool desconhecida** (`ToolManager.call_tool`) e **URI de resource inexistente** (`ResourceNotFoundError`) também já chegam prontos do SDK: a primeira como `isError: true` (satisfaz V06, que aceita -32602 *ou* isError), a segunda como -32602 automático (V08). Nenhum tratamento manual necessário.
+- **`ToolError` preserva a mensagem como substring**, só prefixa com `"Error executing tool <nome>: "`. Os checks V09–V12 usam `in texto(...)`, então levantar `ToolError(str(erro_de_dominio))` no adapter basta — não precisa reconstruir `CallToolResult` à mão para manter a mensagem exata.
+- **Resource estático não recebe `Context`** (`FunctionResource.fn: Callable[[], Any]`, só `ResourceTemplate` injeta `ctx`). Carregar `dados/` e a versão da política uma vez em `criar_app()` e capturar por closure resolve sem precisar do `lifespan` do `MCPServer`.
+- **Nome da função decorada define o `title` do `inputSchema`** (`<nome_da_função>Arguments`), não o `name=` passado ao decorator — por isso as funções das tools têm o mesmo nome da tool (ex.: `def reservar_sala(...)`), e chamam a camada de `application` por acesso qualificado (`casos_de_uso.reservar_sala(...)`) para não colidir.
+
 ## Pendências
-Comportamento quando a sala escolhida foi ocupada entre pausa e retry (fase 2). Conferir se a validação de `_meta` obrigatório (-32602/400) já é do SDK ou precisa de middleware (fase 1).
+Comportamento quando a sala escolhida foi ocupada entre pausa e retry (fase 2).

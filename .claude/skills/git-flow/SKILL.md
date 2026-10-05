@@ -8,6 +8,7 @@ description: Git flow manual deste projeto (a CLI git-flow não está instalada)
 `main` (entrega) ← `release/x.y.z` ← `develop` ← `feature/*`. **Nunca** commitar direto em `main` ou `develop`; tudo entra por PR.
 
 ## Iniciar feature
+Antes de criar a branch, confira `gh pr list` / `git log --oneline develop..origin/develop`: se o PR da fase anterior ainda estiver aberto (não mergeado), `develop` não tem o trabalho mais recente. Pergunte ao usuário se deve mergear aquele PR primeiro ou se a nova branch nasce de outro ponto — não assuma.
 ```bash
 git checkout develop && git pull --ff-only origin develop
 git checkout -b feature/<nome-da-fase>     # nome em docs/specs/PLANO.md §4
