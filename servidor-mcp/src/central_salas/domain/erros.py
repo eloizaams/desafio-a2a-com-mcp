@@ -5,11 +5,11 @@ constitution.md e DESAFIOS.md (ruff N818 desligado de propósito).
 """
 
 from central_salas.constantes import (
-    ERRO_CONFLITO_PROVISORIO,
     ERRO_DURACAO,
     ERRO_INTERVALO,
     ERRO_JANELA,
     ERRO_SALA_INEXISTENTE,
+    ERRO_SEM_ALTERNATIVAS,
 )
 
 
@@ -37,11 +37,8 @@ class ErroDuracao(ErroDominio):
         super().__init__(ERRO_DURACAO)
 
 
-class ErroConflito(ErroDominio):
-    """Sala ocupada no intervalo pedido.
-
-    Provisório da fase 001: vira `input_required` (MRTR) na fase 002-mrtr.
-    """
+class ErroSemAlternativas(ErroDominio):
+    """Conflito sem alternativas disponíveis (fase 002-mrtr)."""
 
     def __init__(self) -> None:
-        super().__init__(ERRO_CONFLITO_PROVISORIO)
+        super().__init__(ERRO_SEM_ALTERNATIVAS)

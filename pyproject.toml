@@ -38,7 +38,11 @@ ignore = ["RUF001", "RUF002", "RUF003", "N818"]
 known-first-party = ["central_salas", "agente_salas"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["PLR2004"]
+# PLR2004: valores mágicos são esperados em fixtures/asserts de teste.
+# PLR0913/PLR0917: helpers de teste espelham os campos do wire MCP 1:1
+# (sala/inicio/fim/responsavel/chave/requestState); dividir isso em menos
+# parâmetros so para agradar o linter reduziria a clareza do teste.
+"**/tests/**" = ["PLR2004", "PLR0913", "PLR0917"]
 
 [tool.mypy]
 python_version = "3.12"

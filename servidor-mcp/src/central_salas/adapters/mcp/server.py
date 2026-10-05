@@ -3,8 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Annotated, Any
 
-from mcp.server.mcpserver import MCPServer, RequestStateSecurity
+from mcp.server.mcpserver import (
+    AcceptedElicitation,
+    CancelledElicitation,
+    DeclinedElicitation,
+    ElicitationResult,
+    MCPServer,
+    RequestStateSecurity,
+    Resolve,
+)
 from mcp.server.mcpserver.exceptions import ToolError
 from starlette.applications import Starlette
 
@@ -16,12 +25,14 @@ from central_salas.adapters.mcp.esquemas import (
     SalaOut,
 )
 from central_salas.adapters.mcp.log import registrar_requisicao
+from central_salas.adapters.mcp.mrtr import criar_resolver_escolha_de_sala
 from central_salas.application import casos_de_uso
 from central_salas.constantes import (
     CAMINHO_MCP,
     CAMINHO_POLITICA,
     CAMINHO_RESERVAS,
     CAMINHO_SALAS,
+    MOTIVO_RECUSA,
     NOME_SERVIDOR,
     TOOL_CONSULTAR_DISPONIBILIDADE,
     TOOL_LISTAR_SALAS,
@@ -88,12 +99,16 @@ def criar_app(config: ConfigServidor) -> Starlette:
             ],
         )
 
-    @servidor.tool(name=TOOL_RESERVAR_SALA, description=DESCRICAO_RESERVAR_SALA)
-    def reservar_sala(sala: str, inicio: str, fim: str, responsavel: str) -> ReservaOut:
-        try:
-            resultado = casos_de_uso.reservar_sala(repositorio, sala, inicio, fim, responsavel)
-        except ErroDominio as erro:
-            raise ToolError(str(erro)) from erro
+    resolver_escolha_de_sala = criar_resolver_escolha_de_sala(repositorio)
+
+    def reservar_sala(sala, inicio, fim, responsavel, escolha) -> ReservaOut:  # type: ignore[no-untyped-def]
+        if isinstance(escolha, DeclinedElicitation | CancelledElicitation):
+            return ReservaOut(reservado=False, motivo=MOTIVO_RECUSA)
+
+        assert isinstance(escolha, AcceptedElicitation)
+        sala_final = sala if escolha.data is None else escolha.data.sala
+
+        resultado = casos_de_uso.reservar_sala(repositorio, sala_final, inicio, fim, responsavel)
         return ReservaOut(
             reserva=resultado.reserva,
             reservado=True,
@@ -104,6 +119,22 @@ def criar_app(config: ConfigServidor) -> Starlette:
             politica=politica.versao,
             motivo=None,
         )
+
+    # `sala`/`inicio`/`fim`/`responsavel` sem anotação na assinatura (acima) porque
+    # `escolha` precisa referenciar `resolver_escolha_de_sala`, uma variável local do
+    # closure: com `from __future__ import annotations` a anotação viraria string, e
+    # `inspect.signature(fn, eval_str=True)` (usado pelo SDK para montar o inputSchema)
+    # só resolve nomes em `fn.__globals__`, não no escopo local. Atribuir os tipos reais
+    # direto em `__annotations__` evita a stringificação para este caso.
+    reservar_sala.__annotations__ = {
+        "sala": str,
+        "inicio": str,
+        "fim": str,
+        "responsavel": str,
+        "escolha": Annotated[ElicitationResult[Any], Resolve(resolver_escolha_de_sala)],
+        "return": ReservaOut,
+    }
+    servidor.tool(name=TOOL_RESERVAR_SALA, description=DESCRICAO_RESERVAR_SALA)(reservar_sala)
 
     @servidor.resource(URI_POLITICA, mime_type="text/markdown")
     def politica_de_uso() -> str:

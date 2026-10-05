@@ -42,7 +42,5 @@ ERRO_JANELA: Final = "Fora da janela de uso: a politica permite reservas entre 0
 ERRO_DURACAO: Final = "Duracao acima do limite: a politica permite no maximo 2 horas"
 ERRO_INTERVALO: Final = "Intervalo invalido: fim deve ser posterior a inicio"
 ERRO_SEM_ALTERNATIVAS: Final = "Sem alternativas disponiveis no intervalo"
-ERRO_CONFLITO_PROVISORIO: Final = (
-    "Conflito: a sala pedida esta ocupada nesse intervalo (tratamento MRTR chega na fase 002-mrtr)"
-)
+MSG_ELICITATION: Final = "A sala pedida esta ocupada nesse intervalo. Escolha uma alternativa."
 MOTIVO_RECUSA: Final = "recusado"
