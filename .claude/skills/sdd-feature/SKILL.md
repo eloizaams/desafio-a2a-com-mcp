@@ -25,5 +25,5 @@ Se não estiver na branch da fase, usar a skill `git-flow` (iniciar feature).
 6. Commit pela skill `caveman-commit`.
 
 ## 4. Fim da fase
-Skill `rodar-validador` → checks esperados verdes → skill `git-flow` (finalizar) → PR com `abrir-pr`.
+Skill `rodar-validador` → checks esperados verdes → `/code-review` sobre o diff da branch (constitution.md + ADRs como padrão, spec da fase como requisito) e aplicar os achados relevantes → skill `git-flow` (finalizar) → PR com `abrir-pr`.
 Diga ao usuário se a próxima fase pede Opus, Sonnet ou Haiku (coluna "Modelo sugerido" do PLANO) e sugira compactar/nova sessão.
