@@ -20,6 +20,9 @@ O validador exige processos **recém-iniciados**: reservas criadas numa execuç�
 3. Compare com os checks esperados da fase (tabela §4 e §5 de `docs/specs/PLANO.md`). FAIL fora do escopo da fase atual é esperado — diga isso explicitamente.
 4. Registre a linha na tabela "Validador" de `docs/PROGRESSO.md` (data, resultado, observação).
 
+## Sempre conferir também
+- `grep -c Traceback logs/agente.log` deve dar `0`. Um FAIL com `estado=` vazio quase sempre é exceção do a2a-sdk no agente (ex.: `Context in event doesn't match TaskManager`, fase 005) — o validador só vê o erro JSON-RPC, a causa está nesse log.
+
 ## Conferências extras do Fluxo do avaliador (manuais, quando a fase pede)
 - **tools/list antes do 1º tools/call** (AV5): em `logs/mcp.log`, a primeira linha com `method=tools/call` deve vir depois de uma `method=tools/list`.
 - **ids diferentes no retry**: as duas linhas `tools/call` do mesmo trace devem ter `id` distintos.
